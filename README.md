@@ -1,36 +1,137 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 経費管理システム
 
-## Getting Started
+確定申告用の経費管理Webアプリケーション
 
-First, run the development server:
+## 特徴
+
+- 📸 **レシート自動読み取り** - OCRで画像からテキストを抽出
+- 🤖 **AI自動分類** - 20種類の経費項目に自動分類
+- 💾 **2つのモード対応**
+  - **ローカルモード**: IndexedDB（認証なし・完全無料）
+  - **クラウドモード**: Supabase（認証あり・複数デバイス対応）
+- 📊 **自動集計** - カテゴリ別・年次集計
+- 📄 **確定申告対応** - 個人事業主向け経費項目完備
+- 📥 **エクスポート機能** - CSV・確定申告用サマリー
+- 📊 **NEW! Googleスプレッドシート連携** - ボタン1つでスプレッドシート作成（Mac対応）
+  - **方法1**: データ自動入力（完全自動化）
+  - **方法2**: テンプレートコピー（手入力）
+
+## 対応する経費項目
+
+給料賃金、外注工賃、減価償却費、貸倒金、地代家賃、利子割引料、租税公課、荷造運賃、水道光熱費、旅費交通費、通信費、広告宣伝費、接待交際費、損害保険料、修繕費、消耗品費、福利厚生費、研修費、雑費、その他
+
+## セットアップ
+
+### 必要な環境
+- Node.js 18以上
+
+### インストール
+
+```bash
+npm install
+```
+
+### 起動方法
+
+#### 🏠 ローカルモード（自分で使う場合）
+
+環境変数を設定せずに起動すると、ローカルモードで動作します。
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+http://localhost:3000 にアクセス
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- データはブラウザのIndexedDBに保存
+- 認証不要
+- 完全無料
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+#### ☁️ クラウドモード（他の人に配布する場合）
 
-## Learn More
+**📖 詳しい手順はこちら:**
+- **[DEPLOY_GUIDE.md](./DEPLOY_GUIDE.md)** ← 詳細な手順（推奨）
+- **[QUICK_START.md](./QUICK_START.md)** ← 簡易版（5ステップ）
 
-To learn more about Next.js, take a look at the following resources:
+**概要:**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Supabaseでプロジェクト作成
+2. `.env.local` に環境変数を設定
+3. GitHubにプッシュ
+4. Vercelでデプロイ
+5. URLを共有
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+→ 各ユーザーがアカウント作成して独立したデータで使用可能
 
-## Deploy on Vercel
+## 使い方
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 1. レシートのアップロード
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+レシート画像をドラッグ&ドロップ、または選択してアップロード
+
+### 2. 自動読み取り
+
+OCRが以下を自動抽出：
+- 日付
+- 金額
+- 店舗名
+- 経費カテゴリ（自動判定）
+
+### 3. 編集
+
+自動判定が間違っている場合は手動で修正可能
+
+### 4. 集計とエクスポート
+
+- 年次選択して集計表示
+- CSVエクスポート
+- 確定申告用サマリー出力
+
+### 5. 📊 Googleスプレッドシート作成（NEW!）
+
+**方法1: 自動作成（データ自動入力）**
+- ボタンをクリックするだけで、登録済みの経費データが入力されたスプレッドシートを作成
+- サマリーシート + 1月〜12月の詳細シート
+- カテゴリ別自動集計
+
+**方法2: テンプレートコピー（手入力）**
+- 空のテンプレートをGoogleドライブにコピー
+- 手動で経費を入力
+- セットアップ不要ですぐ使える
+
+**📖 詳細なセットアップ手順:**
+- **[SPREADSHEET_GUIDE.md](./SPREADSHEET_GUIDE.md)** - スプレッドシート機能の完全ガイド
+- **[SETUP_QUICK_GUIDE.md](./SETUP_QUICK_GUIDE.md)** - 自動作成のセットアップ（10分）
+- **[CREATE_TEMPLATE.md](./CREATE_TEMPLATE.md)** - テンプレート作成手順（5分）
+
+## デプロイ
+
+### Vercel（推奨）
+
+```bash
+# 1. GitHubにプッシュ
+git init
+git add .
+git commit -m "Initial commit"
+git push
+
+# 2. Vercelでデプロイ
+# https://vercel.com でリポジトリをインポート
+```
+
+クラウドモードの場合は、Vercelの環境変数に以下を設定：
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+## 技術スタック
+
+- **Next.js 15** - Reactフレームワーク
+- **TypeScript** - 型安全な開発
+- **Tailwind CSS** - スタイリング
+- **Tesseract.js** - OCRエンジン
+- **Dexie.js** - IndexedDBラッパー
+- **Supabase** - クラウドデータベース（オプション）
+
+## ライセンス
+
+MIT License
