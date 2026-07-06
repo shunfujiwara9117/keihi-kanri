@@ -8,54 +8,59 @@ function getGoogleAppsScriptUrl(): string | null {
 }
 
 /**
- * Googleスプレッドシートを作成して開く
+ * Googleスプレッドシートを自動作成する(hidden form POST方式)。
+ *
+ * 仕組み: 新規タブをtargetにしたフォームPOSTでGAS(API-script-v2.gs doPost)へ送信し、
+ * GASがシート作成後にリダイレクトHTMLを返す → ユーザーは新タブで実際の結果
+ * (完成したシート or エラーページ)を見る。
+ *
+ * この方式を使う理由:
+ * - 旧GET方式(URLパラメータにJSON)は経費が数百件になるとURL長上限を超えて壊れる
+ * - fetch+no-cors方式はレスポンスを読めず「成功と仮定」するしかない(成功偽装になる)
+ * - フォームPOSTはCORS制約を受けず、データ量制限も実質なく、結果はタブで本人が確認できる
+ *
+ * 戻り値のsuccessは「送信を開始できたか」であり、シート作成の成否は新タブに表示される。
  */
-export async function createAndOpenGoogleSheet(
+export function createGoogleSheetViaForm(
   expenses: Expense[],
   year: number = new Date().getFullYear()
-): Promise<{ success: boolean; url?: string; error?: string }> {
+): { success: boolean; error?: string } {
   const scriptUrl = getGoogleAppsScriptUrl();
-
   if (!scriptUrl) {
-    throw new Error(
-      'Google Apps Script URLが設定されていません。\n.env.localファイルに NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL を設定してください。'
-    );
+    return {
+      success: false,
+      error:
+        'Google Apps Script URLが設定されていません。.env.local に NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL を設定してください(手順: SETUP_QUICK_GUIDE.md)。',
+    };
   }
 
+  const serializedExpenses = expenses.map((exp) => ({
+    id: exp.id,
+    amount: exp.amount,
+    date: exp.date.toISOString(),
+    category: exp.category,
+    storeName: exp.storeName || '',
+    description: exp.description || '',
+  }));
+
   try {
-    // 経費データをシリアライズ可能な形式に変換
-    const serializedExpenses = expenses.map((exp) => ({
-      id: exp.id,
-      amount: exp.amount,
-      date: exp.date.toISOString(),
-      category: exp.category,
-      storeName: exp.storeName || '',
-      description: exp.description || '',
-      imageUrl: exp.imageUrl || '',
-    }));
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = scriptUrl;
+    form.target = '_blank';
 
-    // Google Apps ScriptのWebアプリにPOSTリクエストを送信
-    const response = await fetch(scriptUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        expenses: serializedExpenses,
-        year,
-      }),
-      mode: 'no-cors', // Google Apps Scriptは通常のCORSをサポートしていないため
-    });
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'data';
+    // GAS側は decodeURIComponent(e.parameter.data) で読むため、ここでencodeしておく。
+    // (生JSONのまま送ると、摘要に「%」を含む経費で decodeURIComponent が例外になる)
+    input.value = encodeURIComponent(JSON.stringify({ expenses: serializedExpenses, year }));
+    form.appendChild(input);
 
-    // no-corsモードでは、レスポンスの内容を読み取れないため、
-    // リダイレクト方式を使用
-    // 代わりに、Google Apps Scriptでリダイレクトを返すようにする
-
-    // 一旦、成功と仮定（実際にはGoogle Apps Scriptの改善が必要）
-    return {
-      success: true,
-      url: undefined, // no-corsモードではURLを取得できない
-    };
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+    return { success: true };
   } catch (error) {
     console.error('Google Sheets作成エラー:', error);
     return {
@@ -66,32 +71,18 @@ export async function createAndOpenGoogleSheet(
 }
 
 /**
- * より簡単な方法：テンプレートをコピーするリンクを開く
+ * 方法2: あらかじめ作成したテンプレートをコピーするリンクを開く。
+ * 戻り値のsuccessは「リンクを開けたか」。
  */
-export function openGoogleSheetsTemplate() {
-  // あらかじめ作成したテンプレートのID
+export function openGoogleSheetsTemplate(): { success: boolean; error?: string } {
   const templateId = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_TEMPLATE_ID;
-
   if (!templateId) {
-    alert(
-      'テンプレートIDが設定されていません。\nまず、Google Apps Scriptをセットアップしてください。'
-    );
-    return;
+    return {
+      success: false,
+      error:
+        'テンプレートIDが設定されていません。.env.local に NEXT_PUBLIC_GOOGLE_SHEETS_TEMPLATE_ID を設定してください(手順: CREATE_TEMPLATE.md)。',
+    };
   }
-
-  // テンプレートをコピーするリンクを開く
-  const copyUrl = `https://docs.google.com/spreadsheets/d/${templateId}/copy`;
-  window.open(copyUrl, '_blank');
-}
-
-/**
- * Google Sheets APIを使ってスプレッドシートを作成（将来の実装）
- */
-export async function createGoogleSheetWithAPI(
-  expenses: Expense[],
-  year: number = new Date().getFullYear()
-): Promise<string> {
-  // TODO: Google Sheets API v4を使った実装
-  // OAuth認証が必要
-  throw new Error('Google Sheets API実装は未完成です');
+  window.open(`https://docs.google.com/spreadsheets/d/${templateId}/copy`, '_blank');
+  return { success: true };
 }

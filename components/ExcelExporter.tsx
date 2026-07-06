@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Expense } from '@/types/expense';
+import { createGoogleSheetViaForm, openGoogleSheetsTemplate } from '@/lib/google-sheets-export';
 
 interface ExcelExporterProps {
   expenses: Expense[];
@@ -11,67 +12,30 @@ export default function ExcelExporter({ expenses }: ExcelExporterProps) {
   const [isCreating, setIsCreating] = useState(false);
   const currentYear = new Date().getFullYear();
 
-  // 方法1: Google Apps Scriptで自動作成
-  const handleCreateGoogleSheet = async () => {
+  // 方法1: Google Apps Scriptで自動作成(hidden form POST。旧GET方式は経費が
+  // 数百件になるとURL長上限で壊れるため廃止。結果は新タブに実際の成否が表示される)
+  const handleCreateGoogleSheet = () => {
     setIsCreating(true);
-    try {
-      const serializedExpenses = expenses.map((exp) => ({
-        id: exp.id,
-        amount: exp.amount,
-        date: exp.date.toISOString(),
-        category: exp.category,
-        storeName: exp.storeName || '',
-        description: exp.description || '',
-      }));
-
-      const scriptUrl = process.env.NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL;
-
-      if (!scriptUrl) {
-        alert(
-          '⚠️ Google Apps Script URLが設定されていません。\n\nセットアップ手順：\n1. SETUP_QUICK_GUIDE.md を開く\n2. 方法1の手順に従ってセットアップ\n3. または、下の「テンプレートをコピー」ボタンを使う'
-        );
-        setIsCreating(false);
-        return;
-      }
-
-      // URLパラメータとしてデータを送る（GETリクエスト）
-      const params = new URLSearchParams({
-        expenses: JSON.stringify(serializedExpenses),
-        year: currentYear.toString(),
-      });
-
-      const url = `${scriptUrl}?${params.toString()}`;
-
-      // 新しいタブで開く
-      window.open(url, '_blank');
-
-      setTimeout(() => {
-        alert(
-          `✅ Googleスプレッドシートを作成しています！\n\n新しいタブで開かれます。\n数秒お待ちください...`
-        );
-        setIsCreating(false);
-      }, 500);
-    } catch (error) {
-      console.error('Google Sheets作成エラー:', error);
-      alert('❌ スプレッドシートの作成に失敗しました');
+    const result = createGoogleSheetViaForm(expenses, currentYear);
+    if (!result.success) {
+      alert(`⚠️ ${result.error}\n\nまたは、下の「テンプレートをコピー」ボタンを使ってください。`);
       setIsCreating(false);
+      return;
     }
+    setTimeout(() => {
+      alert(
+        '📤 スプレッドシート作成をGoogleに送信しました。\n\n新しいタブに結果が表示されます。\n・成功: 完成したシートが開きます\n・失敗: エラー内容が表示されます(その場合はお知らせください)'
+      );
+      setIsCreating(false);
+    }, 500);
   };
 
   // 方法2: テンプレートをコピー
   const handleCopyTemplate = () => {
-    const templateId = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_TEMPLATE_ID;
-
-    if (!templateId) {
-      alert(
-        '⚠️ テンプレートIDが設定されていません。\n\nセットアップ手順：\n1. CREATE_TEMPLATE.md を開く\n2. 手順に従ってテンプレートを作成\n3. テンプレートIDを.env.localに設定'
-      );
-      return;
+    const result = openGoogleSheetsTemplate();
+    if (!result.success) {
+      alert(`⚠️ ${result.error}`);
     }
-
-    // テンプレートをコピーするリンクを開く
-    const copyUrl = `https://docs.google.com/spreadsheets/d/${templateId}/copy`;
-    window.open(copyUrl, '_blank');
   };
 
   return (

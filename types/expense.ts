@@ -67,3 +67,7 @@ export interface MonthlyReport {
   categoryBreakdown: ExpenseSummary[];
   recordCount: number;
 }
+
+// ExpenseRecord の別名。lib/excel-export・google-sheets-export・ExcelExporter が
+// `Expense` 名で参照しており、名称不一致で本番ビルドが失敗していたため追加(2026-07-06)。
+export type Expense = ExpenseRecord;
