@@ -50,7 +50,10 @@ export const EXPENSE_CATEGORIES: CategoryInfo[] = [
   {
     name: '旅費交通費',
     description: '交通費・出張費',
-    keywords: ['交通費', '電車', 'タクシー', 'バス', '新幹線', '飛行機', 'ホテル', '宿泊', '出張', '旅費', 'Suica', 'PASMO', 'IC'],
+    // 注: 「IC」単体は英文(office/price等)の部分一致で誤分類するため「ICカード」に限定
+    keywords: ['交通費', '電車', 'タクシー', 'バス', '新幹線', '飛行機', 'ホテル', '宿泊', '出張', '旅費',
+      'Suica', 'PASMO', 'ICカード', 'JR', '乗車券', '切符', '航空券', 'ガソリン', 'ENEOS', '出光',
+      '高速道路', 'ETC', 'NEXCO', '駐車場', 'パーキング'],
   },
   {
     name: '通信費',

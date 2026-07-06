@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# --- added by Claude Code security hardening ---
+.env
+.env.*
+credentials.json
+service-account.json
+*.pem
+*.key
+*.pfx
+secrets/
+.secret/
