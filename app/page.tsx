@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import ReceiptUploader from '@/components/ReceiptUploader';
 import ExpenseList from '@/components/ExpenseList';
 import AuthForm from '@/components/AuthForm';
 import ExcelExporter from '@/components/ExcelExporter';
+import BackupReminder from '@/components/BackupReminder';
 import { getAllExpenses } from '@/lib/db';
+import { downloadBackup, restoreFromBackup } from '@/lib/backup';
 import { getAllExpensesFromSupabase } from '@/lib/supabase-db';
 import { summarizeByCategory, exportToCSV, downloadCSV, generateTaxReport } from '@/lib/reports';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,6 +27,7 @@ export default function Home() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [refreshKey, setRefreshKey] = useState(0);
   const [supabaseExpenses, setSupabaseExpenses] = useState<ExpenseRecord[]>([]);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
   const { user, loading } = useAuth();
 
   const useSupabase = isSupabaseConfigured();
@@ -99,6 +102,41 @@ export default function Home() {
     document.body.removeChild(link);
   };
 
+  // バックアップJSONエクスポート
+  // ローカルモード: IndexedDB 全件 / クラウドモード: 現在表示中の Supabase データ
+  const handleBackupExport = async () => {
+    try {
+      await downloadBackup(useSupabase ? allExpenses : undefined);
+    } catch (error) {
+      console.error('バックアップエクスポートエラー:', error);
+      alert('バックアップのエクスポートに失敗しました');
+    }
+  };
+
+  // バックアップJSONからの復元(ローカルモード専用・全置換)
+  const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (
+      !window.confirm(
+        '現在のローカル経費データをすべて削除して、バックアップファイルの内容で置き換えます。よろしいですか？'
+      )
+    ) {
+      return;
+    }
+    try {
+      const count = await restoreFromBackup(file);
+      alert(`${count}件の経費データを復元しました`);
+      handleRefresh();
+    } catch (error) {
+      console.error('バックアップ復元エラー:', error);
+      alert(
+        error instanceof Error ? error.message : 'バックアップの復元に失敗しました'
+      );
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -137,6 +175,9 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* バックアップ督促バナー(ローカルモード専用。クラウドモードはサーバ側に実体があるため出さない) */}
+      {!useSupabase && <BackupReminder onBackup={handleBackupExport} />}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Excelエクスポート */}
@@ -219,6 +260,31 @@ export default function Home() {
                 >
                   確定申告用サマリー
                 </button>
+
+                {/* バックアップ(JSON)導線: 既存エクスポートの下に控えめに配置 */}
+                <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+                  <button
+                    onClick={handleBackupExport}
+                    className="px-2 py-1 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded"
+                  >
+                    バックアップ (JSON)
+                  </button>
+                  {!useSupabase && (
+                    <button
+                      onClick={() => restoreInputRef.current?.click()}
+                      className="px-2 py-1 text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded"
+                    >
+                      バックアップから復元
+                    </button>
+                  )}
+                  <input
+                    ref={restoreInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={handleRestoreFile}
+                    className="hidden"
+                  />
+                </div>
               </div>
             </div>
           </div>

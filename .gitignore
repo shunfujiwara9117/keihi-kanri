@@ -50,3 +50,4 @@ service-account.json
 *.pfx
 secrets/
 .secret/
+.claude/
